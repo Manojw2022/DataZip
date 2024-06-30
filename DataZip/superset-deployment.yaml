@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset
+  template:
+    metadata:
+      labels:
+        app: superset
+    spec:
+      initContainers:
+      - name: init-superset
+        image: busybox
+        command: ['sh', '-c', 'mkdir -p /var/lib/superset && chmod -R 777 /var/lib/superset']
+        volumeMounts:
+        - name: superset-data
+          mountPath: /var/lib/superset
+      containers:
+      - name: superset
+        image: apache/superset:latest
+        ports:
+        - containerPort: 8088
+        env:
+        - name: SUPERSET_LOAD_EXAMPLES
+          value: "yes"
+        - name: SUPERSET_SECRET_KEY
+          value: "thisISaSECRET_1234"
+        - name: SQLALCHEMY_DATABASE_URI
+          value: "sqlite:////var/lib/superset/superset.db"
+        - name: SUPERSET_HOME
+          value: "/var/lib/superset"
+        - name: SUPERSET_ADMIN_USERNAME
+          value: "admin"  # Replace with your desired admin username
+        - name: SUPERSET_ADMIN_PASSWORD
+          value: "admin123"  # Replace with your desired admin password
+        command: ["/bin/sh", "-c", "superset db upgrade && superset init && superset run -h 0.0.0.0 -p 8088"]
+        volumeMounts:
+        - name: superset-data
+          mountPath: /var/lib/superset
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "1"
+          requests:
+            memory: "1Gi"
+            cpu: "0.5"
+      volumes:
+      - name: superset-data
+        emptyDir: {}
+      restartPolicy: Always
